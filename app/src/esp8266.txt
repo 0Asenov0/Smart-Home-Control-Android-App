@@ -1,0 +1,161 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+ // Change
+const char* ssid = "Enter SSID";
+ // Change
+
+const char* password = "Enter Password";
+bool curtainsMovingUp = false;
+bool curtainsMovingDown = false;
+
+const unsigned long debounceTime = 50;
+
+const int lightSwitch = D0;
+const int fanMotor = D1;
+const int acSwitch = D2;
+const int doorLockSwitch = D3;
+const int doorUnlockSwitch = D4;
+const int curtainMotorUp = D5;
+const int curtainsMotorDown = D6;
+const int curtainLimitPin = D8;
+
+
+ESP8266WebServer server(80);
+
+void setup() {
+    Serial.begin(115200);
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("\nConnected to Wi-Fi");
+    Serial.println(WiFi.localIP());
+
+
+    pinMode(lightSwitch, 	OUTPUT);
+    pinMode(fanMotor,	        OUTPUT);
+    pinMode(acSwitch,		OUTPUT);
+    pinMode(doorLockSwitch,	OUTPUT);
+    pinMode(doorUnlockSwitch, 	OUTPUT);
+    pinMode(curtainMotorUp, 	OUTPUT);
+    pinMode(curtainMotorDown, 	OUTPUT);
+
+    pinMode(curtainLimitPin, 	INPUT_PULLUP);
+
+    digitalWrite(lightSwitch,	   0);
+    digitalWrite(fanMotor,         0);
+    digitalWrite(doorLockSwitch,   0);
+    digitalWrite(doorUnlockSwitch, 0);
+    digitalWrite(curtainMotorUp,   0);
+    digitalWrite(curtainMotorDown, 0);
+
+
+    server.on("/lights/on", []() {
+	digitalWrite(lightSwitch, 1);
+        Serial.println("Lights Turned ON");
+        server.send(200, "text/plain", "Lights ON");
+    });
+
+    server.on("/lights/off", []() {
+	digitalWrite(lightSwitch, 0);
+        Serial.println("Lights Turned OFF");
+        server.send(200, "text/plain", "Lights OFF");
+    });
+
+    server.on("/fan/on", []() {
+	digitalWrite(fanMotor, 1);
+        Serial.println("Fan Turned ON");
+        server.send(200, "text/plain", "Fan ON");
+    });
+
+    server.on("/fan/off", []() {
+	digitalWrite(fanMotor, 0);
+        Serial.println("Fan Turned OFF");
+        server.send(200, "text/plain", "Fan OFF");
+    });
+
+
+    server.on("/ac/ON",[](){
+	digitalWrite(acSwitch, 1);
+	Serial.println("AC TURNED ON");
+	server.send(200, "text/plain", "AC ON");
+   });
+
+
+    server.on("/ac/OFF",[](){
+	digitalWrite(acSwitch, 0);
+	Serial.println("AC Turned ON");
+	server.send(200, "text/plain", "AC OFF");
+   });
+
+
+    server.on("/door/LOCKED",[](){
+	digitalWrite(doorLockSwitch, 1);
+	delay(200);
+	digitalWrite(doorLockSwitch, 0);
+	Serial.println("Door is LOCKED");
+	server.send(200, "text/plain", "DOOR LOCKED");
+   });
+
+    server.on("/door/UNLOCKED",[](){
+	digitalWrite(doorUnlockSwitch, 1);
+	delay(200);
+	digitalWrite(doorUnlockSwitch, 0);
+	Serial.println("Door is UNLOCKED");
+	server.send(200, "text/plain", "DOOR UNCLOCKED");
+   });
+
+   server.on("/curtains/UP",[](){
+	digitalWrite(curtainsMotorUp, 1);
+	curtainsMovingUp = true;
+	Serial.println("Curtains Going UP");
+	server.send(200, "text/plain", "Curtains UP");
+   });
+
+ server.on("/curtains/DOWN",[](){
+	digitalWrite(curtainsMotorDown, 1);
+	curtainsMovingDown = true;
+	Serial.println("Curtains Going DOWN");
+	server.send(200, "text/plain", "Curtains DOWN");
+   });
+	server.on("/curtains/STOP",[](){
+	digitalWrite(curtainsMotorUp, 0);
+	digitalWrite(curtainsMotorDown, 0);
+	Serial.println("Curtains Going STOP");
+	server.send(200, "text/plain", "Curtains STOP");
+   });
+
+    server.begin();
+}
+
+void loop() {
+    server.handleClient();
+ static unsigned long lastLimitTriggerUp = 0;
+  static unsigned long lastLimitTriggerDown = 0;
+
+    if(curtainsMovingUp && digitalRead(curtainLimitPin) == 0){
+	    if( millis() - lastLimitTriggerUp > debounceTime){
+              digitalWrite(curtainMotorUp, 0);
+	      curtainsMovingUp = false;
+	      Serial.println("Curtains reached top");
+	      lastLimitTriggerUp = millis();
+	    }
+    }
+
+
+     if(curtainsMovingDown && digitalRead(curtainsLimitPin) == 0){
+	    if(millis() - lastLimitTriggerDown > debounceTime){
+	  	digitalWrite(curtainMotorDown, 0);
+	  	curtainsMovingDown = false;
+	  	Serial.println("Curtains reached bottom");
+  	       lastLimitTriggerDown = millis();
+            }
+	}
+
+
+
+
+
+}
